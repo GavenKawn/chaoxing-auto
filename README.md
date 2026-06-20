@@ -1,202 +1,134 @@
 # chaoxing-auto
 
-> 学习通自动刷课 CLI 工具 - 终端一键完成视频观看任务
+> 学习通自动刷课 CLI 工具，支持自动播放视频、章节检测和任务接管。
 
-[![npm version](https://img.shields.io/npm/v/chaoxing-auto.svg)](https://www.npmjs.com/package/chaoxing-auto)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/chaoxing-auto.svg)](https://nodejs.org)
+## ✨ 特性
 
-## 项目简介
-
-学习通自动刷课 CLI 工具。基于 Playwright 浏览器自动化，通过终端交互式界面一键完成视频观看任务，支持自动切换下一小节、防暂停保护、断点续刷等功能。
-
-## 快速开始
-
-克隆项目：
-
-```bash
-git clone https://github.com/GavenKwan/chaoxing-auto.git
-cd chaoxing-auto
-```
-
-安装依赖：
-
-```bash
-npm install
-```
-
-启动：
-
-```bash
-npm start
-```
-
-首次启动时，终端会显示登录界面。按 Enter 后会打开学习通官方登录页，你可以使用扫码、短信验证码或账号密码登录。登录成功后，终端会显示课程列表。
-
-## 常用命令
-
-启动交互式界面：
-
-```bash
-npm start
-```
-
-单独登录：
-
-```bash
-npm run login
-```
-
-清除登录状态：
-
-```bash
-npm run clear
-```
-
-列出课程：
-
-```bash
-npm run list
-```
-
-账号密码登录（备用）：
-
-```bash
-npm run login -- --password
-```
-
-## 功能特性
-
-- 自动播放视频 - 自动穿透 iframe 找到视频元素并播放
-- 倍速播放 - 支持 1.5x-2x 随机倍速，模拟真实观看
-- 自动静音 - 静音播放，不打扰工作
-- 防暂停保护 - 拦截平台暂停机制，持续播放
-- 断点续刷 - 记录播放进度，中断后可继续
-- 精美终端 UI - 基于 Ink (React for CLI) 的现代化界面
-- 实时进度显示 - 进度条、剩余时间、播放速度一目了然
-- Cookie 持久化 - 登录状态自动保存，无需重复登录
-- 智能课程解析 - 自动获取课程列表和任务点
-
-## 终端截图
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║  ● chaoxing-auto by GavenKwan        v1.0.0                   ║
-╚══════════════════════════════════════════════════════════════╝
-
-课程列表
-
-> 高等数学（上）
-  张老师 | 45%
-  
-  大学物理
-  李老师 | 78%
-  
-  程序设计基础
-  王老师 | 100%
-
-[↑/↓] 选择 | [Enter] 开始 | [q] 退出
-```
-
-## 开发
-
-开发模式：
-
-```bash
-npm run dev
-```
-
-构建：
-
-```bash
-npm run build
-```
-
-类型检查：
-
-```bash
-npm run typecheck
-```
-
-## 全局安装
-
-项目发布到 npm 后，可以通过以下方式安装：
-
-```bash
-npm install -g chaoxing-auto
-chaoxing
-```
-
-## 项目结构
-
-```
-chaoxing-auto/
-├── bin/
-│   └── cli.ts              # CLI 入口
-├── src/
-│   ├── index.ts            # 主入口
-│   ├── commands/           # CLI 命令
-│   │   ├── login.ts
-│   │   ├── run.ts
-│   │   ├── list.ts
-│   │   └── clear.ts
-│   ├── browser/            # 浏览器自动化
-│   │   ├── launcher.ts
-│   │   ├── auth.ts
-│   │   ├── video.ts
-│   │   ├── course.ts
-│   │   └── anti-detect.ts
-│   ├── ui/                 # 终端 UI
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   └── theme.ts
-│   └── utils/              # 工具函数
-│       ├── config.ts
-│       ├── storage.ts
-│       └── logger.ts
-├── package.json
-├── tsconfig.json
-└── tsup.config.ts
-```
-
-## 技术栈
-
-- TypeScript - 类型安全
-- Commander - CLI 框架
-- Ink - React for CLI
-- Playwright - 浏览器自动化
-- Chalk - 终端颜色
-- Boxen - 边框装饰
-- Conf - 配置持久化
-
-## 安全说明
-
-- 本工具仅供技术学习和研究。
-- 使用者应遵守学校、课程平台和相关规则。
-- 自动化访问可能导致账号、课程记录或平台风控风险。
-- 默认推荐浏览器扫码/验证码登录，不推荐在不可信环境中输入真实账号密码。
-- Cookie 会保存在本机配置目录中。
-- 可以通过 `npm run clear` 命令删除 Cookie。
-- 密码输入会遮蔽显示，不会保存到本地，不会打印到日志。
-
-## 免责声明
-
-本工具仅供学习和研究使用，请勿用于违反学校规定的行为。使用本工具产生的任何后果由使用者自行承担。
-
-## 许可证
-
-[MIT](LICENSE) © GavenKwan
-
-## 作者
-
-**GavenKwan**
-
-- GitHub: [@GavenKwan](https://github.com/GavenKwan)
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
+* 自动播放视频
+* 自动检测章节任务
+* 支持暂停后继续
+* 支持手动接管当前视频
+* Cookie 本地保存，无需重复登录
+* CLI 交互，简单易用
 
 ---
 
-如果这个项目对你有帮助，请给一个 Star！
+## 🚀 快速开始
+
+### 环境要求
+
+* Node.js ≥ 18
+* Chrome 或 Edge 浏览器
+* Windows / macOS 均可使用
+
+检查 Node.js 是否已安装：
+
+```bash
+node -v
+npm -v
+```
+
+如果提示命令不存在，请先安装 Node.js。
+
+---
+
+## 📦 安装
+
+```bash
+git clone https://github.com/GavenKawn/chaoxing-auto.git
+cd chaoxing-auto
+npm install
+npm start
+```
+
+首次运行会打开浏览器，支持扫码或账号密码登录。
+
+---
+
+## 📖 使用方法
+
+### ① 登录学习通
+
+按 Enter 打开浏览器，完成登录。
+
+### ② 手动进入课程视频页面
+
+请先自行进入：
+
+```text
+课程 → 章节 → 视频页面
+```
+
+⚠️ **必须先点击进入具体章节的视频页面，再返回终端。**
+
+程序不会自动帮你进入课程。
+
+### ③ 开始自动刷课
+
+回到终端，按：
+
+```text
+a
+```
+
+程序会自动检测当前页面并开始学习。
+
+---
+
+## ⌨️ 快捷键
+
+|  按键 | 功能     |
+| :-: | ------ |
+| `a` | 自动刷课   |
+| `v` | 接管当前视频 |
+| `r` | 刷新检测   |
+| `s` | 停止任务   |
+| `q` | 退出程序   |
+
+---
+
+## 🔄 更新项目
+
+```bash
+git pull
+npm install
+```
+
+---
+
+## ⚠️ 常见问题
+
+### 没有反应？
+
+请确认已经进入：
+
+```text
+课程 → 章节 → 视频页面
+```
+
+而不是课程首页或章节列表页。
+
+### 无法启动？
+
+检查：
+
+```bash
+node -v
+npm -v
+```
+
+确保 Node.js 已正确安装。
+
+---
+
+## 📜 说明
+
+* Cookie 仅保存在本地，不会上传；
+* 密码不持久化，仅用于登录；
+* 本项目仅供学习和技术研究使用。
+
+---
+
+## License
+
+MIT © GavenKawn
