@@ -630,7 +630,7 @@ const AUTOPLAY_SCRIPT = `
   var microLessonFrames = null;
 
   // 切换到指定索引的微课视频
-  function playMicroLessonByIndex(index): boolean {
+  function playMicroLessonByIndex(index) {
     if (!microLessonFrames || index >= microLessonFrames.length) return false;
 
     var frameInfo = microLessonFrames[index];
@@ -676,7 +676,7 @@ const AUTOPLAY_SCRIPT = `
   }
 
   // 切换到下一个微课视频
-  function switchToNextMicroLessonVideo(): boolean {
+  function switchToNextMicroLessonVideo() {
     if (!microLessonFrames) {
       microLessonFrames = getMicroLessonVideoFrames();
       if (!microLessonFrames) return false;
@@ -760,7 +760,7 @@ const AUTOPLAY_SCRIPT = `
   var taskPointVideos = null;
 
   // 切换到下一个任务点视频
-  function switchToNextTaskPointVideo(): boolean {
+  function switchToNextTaskPointVideo() {
     if (!taskPointVideos) {
       taskPointVideos = getTaskPointVideos();
       if (!taskPointVideos) return false;
@@ -1040,10 +1040,25 @@ const AUTOPLAY_SCRIPT = `
 export const injectAutoplay = async (): Promise<boolean> => {
   const page = getLearningPage();
 
+  if (!page) {
+    logger.error('注入失败：无法获取页面对象');
+    return false;
+  }
+
   try {
+    logger.debug('准备注入自动播放脚本...');
+    
+    // 等待页面加载完成
+    logger.debug('等待页面加载完成...');
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
+    await page.waitForTimeout(500);
+
     const active = await page.evaluate(() => {
       return (window as any).__chaoxingAutoplayActive === true;
-    }).catch(() => false);
+    }).catch((e: any) => {
+      logger.info(`检查脚本状态失败: ${e.message}`);
+      return false;
+    });
 
     if (active) {
       logger.info('自动播放脚本已在运行，先停止再重新启动');
@@ -1060,11 +1075,35 @@ export const injectAutoplay = async (): Promise<boolean> => {
       (window as any).__chaoxingStatus = null;
     }).catch(() => {});
 
-    await page.evaluate(AUTOPLAY_SCRIPT);
-    logger.success('自动播放脚本已注入页面');
-    return true;
-  } catch (error) {
-    logger.error(`注入自动播放脚本失败: ${error}`);
+    logger.debug('开始注入 AUTOPLAY_SCRIPT...');
+    
+    // 尝试多次注入，防止网络波动
+    let injected = false;
+    for (let i = 0; i < 3; i++) {
+      try {
+        await page.evaluate(AUTOPLAY_SCRIPT);
+        logger.debug(`注入尝试 ${i + 1} 成功`);
+        
+        // 验证注入是否成功
+        injected = await page.evaluate(() => {
+          return !!(window as any).__chaoxingAutoplayActive;
+        }).catch(() => false);
+        
+        if (injected) {
+          logger.success('自动播放脚本已注入页面');
+          return true;
+        }
+      } catch (e: any) {
+        logger.info(`注入尝试 ${i + 1} 失败: ${e.message}`);
+        await page.waitForTimeout(300);
+      }
+    }
+
+    logger.error('注入失败：多次尝试后脚本仍未成功执行');
+    return false;
+  } catch (error: any) {
+    logger.error(`注入自动播放脚本失败: ${error.message}`);
+    logger.debug(`错误堆栈: ${error.stack}`);
     return false;
   }
 };
