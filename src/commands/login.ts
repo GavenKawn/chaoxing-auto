@@ -1,6 +1,5 @@
 import * as readline from 'readline';
 import { login, loginWithBrowser } from '../browser/auth.js';
-import { closeBrowser } from '../browser/launcher.js';
 import { logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import boxen from 'boxen';
@@ -119,9 +118,7 @@ export const loginCommand = async (options: LoginOptions = {}) => {
     console.log(chalk.gray('\n正在登录，请在浏览器中完成验证码验证（如有）...\n'));
 
     const success = await login(phone, password);
-    
-    await closeBrowser();
-    
+
     if (success) {
       logger.success('登录成功！Cookie 已保存');
       console.log(chalk.gray('\n现在可以运行 chaoxing run 开始刷课'));
@@ -135,13 +132,12 @@ export const loginCommand = async (options: LoginOptions = {}) => {
     console.log(chalk.gray('登录成功后会自动保存 Cookie\n'));
 
     const success = await loginWithBrowser();
-    
+
     if (success) {
       logger.success('登录成功！Cookie 已保存');
       console.log(chalk.gray('\n现在可以运行 chaoxing run 开始刷课'));
     } else {
       logger.error('登录失败或超时');
-      await closeBrowser();
       process.exit(1);
     }
   }

@@ -344,7 +344,7 @@ export const App: React.FC = () => {
           </Box>
           <Box marginTop={1}>
             <Text color={theme.textMuted}>
-              [q] 退出终端 UI
+              [s] 停止播放 | [q] 退出终端 UI
             </Text>
           </Box>
           {error && (
