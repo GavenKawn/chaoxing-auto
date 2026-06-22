@@ -1046,10 +1046,9 @@ export const injectAutoplay = async (): Promise<boolean> => {
   }
 
   try {
-    logger.debug('准备注入自动播放脚本...');
+    logger.info('准备注入自动播放脚本...');
     
     // 等待页面加载完成
-    logger.debug('等待页面加载完成...');
     await page.waitForLoadState('domcontentloaded').catch(() => {});
     await page.waitForTimeout(500);
 
@@ -1075,14 +1074,14 @@ export const injectAutoplay = async (): Promise<boolean> => {
       (window as any).__chaoxingStatus = null;
     }).catch(() => {});
 
-    logger.debug('开始注入 AUTOPLAY_SCRIPT...');
+    logger.info('开始注入脚本...');
     
     // 尝试多次注入，防止网络波动
     let injected = false;
     for (let i = 0; i < 3; i++) {
       try {
         await page.evaluate(AUTOPLAY_SCRIPT);
-        logger.debug(`注入尝试 ${i + 1} 成功`);
+        logger.info(`注入尝试 ${i + 1} 成功`);
         
         // 验证注入是否成功
         injected = await page.evaluate(() => {
@@ -1094,7 +1093,7 @@ export const injectAutoplay = async (): Promise<boolean> => {
           return true;
         }
       } catch (e: any) {
-        logger.info(`注入尝试 ${i + 1} 失败: ${e.message}`);
+        logger.error(`注入尝试 ${i + 1} 失败: ${e.message}`);
         await page.waitForTimeout(300);
       }
     }
@@ -1103,7 +1102,6 @@ export const injectAutoplay = async (): Promise<boolean> => {
     return false;
   } catch (error: any) {
     logger.error(`注入自动播放脚本失败: ${error.message}`);
-    logger.debug(`错误堆栈: ${error.stack}`);
     return false;
   }
 };
