@@ -699,19 +699,138 @@ const AUTOPLAY_SCRIPT = `
     return false;
   }
 
-  // 视频播放完成后的处理（先检查微课视频，再切换章节）
+  // 检测页面底部的任务点视频列表（学习通常见的任务点区域）
+  // 任务点区域通常在页面下方，包含多个视频任务点
+  function getTaskPointVideos() {
+    try {
+      // 尝试多种选择器匹配任务点区域
+      var taskPointSelectors = [
+        '.task-point-list',
+        '.task-list',
+        '.video-list',
+        '.lesson-list',
+        '.task-item-list',
+        '[class*="task"] > div',
+        '[class*="task"] > li',
+        '.ans-job-content'
+      ];
+
+      var taskPointContainer = null;
+      for (var i = 0; i < taskPointSelectors.length && !taskPointContainer; i++) {
+        taskPointContainer = document.querySelector(taskPointSelectors[i]);
+      }
+
+      if (!taskPointContainer) return null;
+
+      // 在任务点区域中查找视频元素
+      var videos = taskPointContainer.querySelectorAll('video');
+      if (videos.length > 1) {
+        console.log('[cx] 检测到任务点区域有 ' + videos.length + ' 个视频');
+        return Array.prototype.slice.call(videos);
+      }
+
+      // 也检查任务点区域中的 iframe 视频
+      var iframes = taskPointContainer.querySelectorAll('iframe');
+      var videoFrames = [];
+      for (var i = 0; i < iframes.length; i++) {
+        try {
+          var doc = iframes[i].contentDocument;
+          if (doc) {
+            var innerVideo = doc.querySelector('video');
+            if (innerVideo) {
+              videoFrames.push({ iframe: iframes[i], video: innerVideo });
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (videoFrames.length > 1) {
+        console.log('[cx] 检测到任务点区域有 ' + videoFrames.length + ' 个视频 iframe');
+        return videoFrames;
+      }
+    } catch (e) {
+      console.error('[cx] 检测任务点视频出错:', e);
+    }
+
+    return null;
+  }
+
+  // 当前播放的任务点视频索引
+  var currentTaskPointIndex = 0;
+  var taskPointVideos = null;
+
+  // 切换到下一个任务点视频
+  function switchToNextTaskPointVideo(): boolean {
+    if (!taskPointVideos) {
+      taskPointVideos = getTaskPointVideos();
+      if (!taskPointVideos) return false;
+      currentTaskPointIndex = 0;
+      // 第一个视频已经在播放，不需要切换
+      return false;
+    }
+
+    // 还有下一个任务点视频
+    if (currentTaskPointIndex < taskPointVideos.length - 1) {
+      var nextIndex = currentTaskPointIndex + 1;
+      console.log('[cx] 切换到任务点视频 ' + (nextIndex + 1) + '/' + taskPointVideos.length);
+      updateStatus('播放任务点视频 ' + (nextIndex + 1) + '/' + taskPointVideos.length);
+
+      var nextVideoData = taskPointVideos[nextIndex];
+      
+      // 根据数据类型处理
+      if (nextVideoData instanceof HTMLVideoElement) {
+        // 直接是 video 元素
+        videoEl = nextVideoData;
+      } else if (nextVideoData.video) {
+        // 是包含 iframe 和 video 的对象
+        videoEl = nextVideoData.video;
+      } else {
+        console.warn('[cx] 无法识别任务点视频数据');
+        return false;
+      }
+
+      // 重置状态并播放
+      isPlaying = false;
+      currentTaskPointIndex = nextIndex;
+      setupVideoEvents(videoEl);
+      
+      videoEl.muted = true;
+      videoEl.playbackRate = CONFIG.playbackRate;
+      videoEl.play().then(function() {
+        console.log('[cx] 任务点视频 ' + (nextIndex + 1) + ' 开始播放');
+        isPlaying = true;
+      }).catch(function(e) {
+        console.error('[cx] 任务点视频播放失败:', e.message);
+      });
+
+      return true;
+    }
+
+    // 所有任务点视频播放完成
+    console.log('[cx] 所有任务点视频播放完成，切换下一章节');
+    taskPointVideos = null;
+    currentTaskPointIndex = 0;
+    return false;
+  }
+
+  // 视频播放完成后的处理（先检查微课视频，再检查任务点视频，最后切换章节）
   function onVideoEnded() {
     if (window.__chaoxingAutoStop) return;
     console.log('[cx] 视频ended事件触发');
     isPlaying = false;
     updateStatus('视频播放完成，准备切换...');
 
-    // 1. 先尝试切换微课视频（同一页面内的多个视频）
+    // 1. 先尝试切换微课视频（同一页面内的多个视频 iframe）
     if (switchToNextMicroLessonVideo()) {
       return;
     }
 
-    // 2. 没有微课视频或已播放完所有微课视频，调用原来的章节切换
+    // 2. 再尝试切换任务点视频（页面底部任务点区域的多个视频）
+    if (switchToNextTaskPointVideo()) {
+      return;
+    }
+
+    // 3. 没有微课视频或任务点视频，调用原来的章节切换
     setTimeout(function() { nextUnit(); }, 1000);
   }
 
