@@ -121,13 +121,16 @@ const AUTOPLAY_SCRIPT = `
     return null;
   }
 
+  // 获取课程树容器（支持多种选择器）
   function getTreeContainer() {
-    return document.querySelector('#coursetree');
+    // 学习通可能使用不同的容器选择器
+    return document.querySelector('#coursetree') ||
+           document.querySelector('.coursetree') ||
+           document.querySelector('[id*="coursetree"]') ||
+           document.querySelector('[class*="coursetree"]');
   }
 
   // 获取课程树的直接子章节（只获取第一层 li，不包含嵌套小节）
-  // 关键修复：必须只获取 #coursetree > ul > li 的直接子元素
-  // 不能用 querySelectorAll('ul > li') 因为会匹配所有层级的 li
   function getDirectCells() {
     var tree = getTreeContainer();
     if (!tree) return [];
@@ -140,6 +143,12 @@ const AUTOPLAY_SCRIPT = `
         break;
       }
     }
+    
+    // 如果没找到，尝试其他方式
+    if (!ul) {
+      ul = tree.querySelector('ul');
+    }
+    
     if (!ul) return [];
 
     // 获取 ul 的直接子 li（即章节，不包含嵌套小节）
@@ -152,7 +161,7 @@ const AUTOPLAY_SCRIPT = `
     return cells;
   }
 
-  // 查找当前激活的视频位置
+  // 查找当前激活的视频位置（增强版）
   function findCurrentPosition() {
     var tree = getTreeContainer();
     if (!tree) return null;
@@ -164,14 +173,49 @@ const AUTOPLAY_SCRIPT = `
     var currentNCell = -1;
     var currentTitle = '';
 
+    // 支持多种学习通节点选择器
+    var nodeSelectors = [
+      '.posCatalog_select:not(.firstLayer)',
+      '.catalog_select:not(.firstLayer)',
+      '.chapterItem:not(.firstLayer)',
+      '.lessonItem',
+      '.treeItem:not(.firstLayer)',
+      'li[class*="Catalog"]:not(.firstLayer)',
+      'li[class*="chapter"]',
+      'li[class*="lesson"]'
+    ];
+
     for (var i = 0; i < cells.length; i++) {
-      // 在章节内查找所有视频节点（排除 firstLayer 即章节标题本身）
-      var nCells = cells[i].querySelectorAll('.posCatalog_select:not(.firstLayer)');
+      // 尝试多种选择器
+      var nCells = [];
+      for (var selIdx = 0; selIdx < nodeSelectors.length && nCells.length === 0; selIdx++) {
+        try {
+          nCells = cells[i].querySelectorAll(nodeSelectors[selIdx]);
+        } catch (e) {}
+      }
+      
+      // 如果还是没找到，尝试更通用的选择器
+      if (nCells.length === 0) {
+        nCells = cells[i].querySelectorAll('li:not(.firstLayer)');
+      }
+
       for (var j = 0; j < nCells.length; j++) {
-        if (nCells[j].classList.contains('posCatalog_active')) {
+        // 检查是否是当前激活的节点
+        var isActive = nCells[j].classList.contains('posCatalog_active') ||
+                       nCells[j].classList.contains('catalog_active') ||
+                       nCells[j].classList.contains('active') ||
+                       nCells[j].classList.contains('current') ||
+                       nCells[j].classList.contains('selected');
+
+        if (isActive) {
           currentCell = i;
           currentNCell = j;
-          var titleSpan = nCells[j].querySelector('.posCatalog_name');
+          // 获取标题
+          var titleSpan = nCells[j].querySelector('.posCatalog_name') ||
+                          nCells[j].querySelector('.catalog_name') ||
+                          nCells[j].querySelector('.chapterName') ||
+                          nCells[j].querySelector('.lessonName') ||
+                          nCells[j].querySelector('span');
           if (titleSpan) {
             currentTitle = titleSpan.getAttribute('title') || titleSpan.textContent || '';
           }
@@ -184,20 +228,69 @@ const AUTOPLAY_SCRIPT = `
     return { cells: cells, currentCell: currentCell, currentNCell: currentNCell, title: currentTitle };
   }
 
+  // 点击视频节点（增强版）
   function clickVideoNode(node) {
-    var span = node.querySelector('.posCatalog_name');
-    if (!span) {
-      console.error('[cx] 找不到 .posCatalog_name');
-      return false;
+    // 尝试多种方式获取可点击元素
+    var clickTarget = node.querySelector('.posCatalog_name') ||
+                      node.querySelector('.catalog_name') ||
+                      node.querySelector('.chapterName') ||
+                      node.querySelector('.lessonName') ||
+                      node.querySelector('span') ||
+                      node.querySelector('a');
+
+    if (!clickTarget) {
+      // 如果找不到子元素，直接点击节点本身
+      clickTarget = node;
     }
-    var title = span.getAttribute('title') || span.textContent || '未知';
+
+    var title = '';
+    var titleSpan = node.querySelector('.posCatalog_name') ||
+                    node.querySelector('.catalog_name') ||
+                    node.querySelector('span');
+    if (titleSpan) {
+      title = titleSpan.getAttribute('title') || titleSpan.textContent || '未知';
+    }
+    
     console.log('[cx] 点击切换到: ' + title);
     window.__chaoxingStatus.title = title;
-    span.click();
+    
+    // 模拟真实点击事件
+    clickTarget.dispatchEvent(new MouseEvent('click', { 
+      bubbles: true, 
+      cancelable: true, 
+      view: window,
+      button: 0
+    }));
     return true;
   }
 
-  // 切换到下一小节
+  // 获取章节内的视频节点（支持多种选择器）
+  function getChapterNodes(chapter) {
+    var nodeSelectors = [
+      '.posCatalog_select:not(.firstLayer)',
+      '.catalog_select:not(.firstLayer)',
+      '.chapterItem:not(.firstLayer)',
+      '.lessonItem',
+      '.treeItem:not(.firstLayer)',
+      'li[class*="Catalog"]:not(.firstLayer)',
+      'li[class*="chapter"]',
+      'li[class*="lesson"]'
+    ];
+
+    for (var i = 0; i < nodeSelectors.length; i++) {
+      try {
+        var nodes = chapter.querySelectorAll(nodeSelectors[i]);
+        if (nodes.length > 0) {
+          return nodes;
+        }
+      } catch (e) {}
+    }
+
+    // 最后的通用选择器
+    return chapter.querySelectorAll('li:not(.firstLayer)');
+  }
+
+  // 切换到下一小节（增强版）
   function nextUnit() {
     console.log('[cx] === 准备切换到下一小节 ===');
     updateStatus('正在切换到下一小节...');
@@ -210,9 +303,29 @@ const AUTOPLAY_SCRIPT = `
 
       var tree = getTreeContainer();
       if (tree) {
-        var firstNode = tree.querySelector('.posCatalog_select:not(.firstLayer) .posCatalog_name');
+        // 使用多种选择器查找第一个视频节点
+        var firstNode = null;
+        var selectors = [
+          '.posCatalog_select:not(.firstLayer) .posCatalog_name',
+          '.catalog_select:not(.firstLayer) .catalog_name',
+          '.posCatalog_select:not(.firstLayer) span',
+          '.catalog_select:not(.firstLayer) span',
+          'li:not(.firstLayer) span'
+        ];
+        
+        for (var selIdx = 0; selIdx < selectors.length && !firstNode; selIdx++) {
+          try {
+            firstNode = tree.querySelector(selectors[selIdx]);
+          } catch (e) {}
+        }
+        
         if (firstNode) {
-          firstNode.click();
+          firstNode.dispatchEvent(new MouseEvent('click', { 
+            bubbles: true, 
+            cancelable: true, 
+            view: window,
+            button: 0
+          }));
           videoEl = null;
           isPlaying = false;
           setTimeout(function() { play(); }, 3000);
@@ -226,8 +339,8 @@ const AUTOPLAY_SCRIPT = `
     var currentCell = pos.currentCell;
     var currentNCell = pos.currentNCell;
 
-    // 获取当前章节内的所有视频节点
-    var currentChapterNCells = cells[currentCell].querySelectorAll('.posCatalog_select:not(.firstLayer)');
+    // 获取当前章节内的所有视频节点（使用增强版选择器）
+    var currentChapterNCells = getChapterNodes(cells[currentCell]);
 
     console.log('[cx] 当前章节有 ' + currentChapterNCells.length + ' 个小节, 当前是第 ' + (currentNCell + 1) + ' 个');
 
@@ -245,7 +358,7 @@ const AUTOPLAY_SCRIPT = `
     } else {
       // 2. 切换到下一个有视频的章节
       for (var i = currentCell + 1; i < cells.length; i++) {
-        var nCells = cells[i].querySelectorAll('.posCatalog_select:not(.firstLayer)');
+        var nCells = getChapterNodes(cells[i]);
         if (nCells.length > 0) {
           console.log('[cx] 切换到下一章节: ' + (i + 1) + '/' + cells.length + ' (共 ' + nCells.length + ' 节)');
           updateStatus('切换到第 ' + (i + 1) + ' 章');
@@ -476,30 +589,136 @@ const AUTOPLAY_SCRIPT = `
     }
   }
 
-  function tryResume(reason) {
-    var now = Date.now();
-    if (now - guardLastResumeTs < CONFIG.guardResumeCooldownMs) return;
-    guardLastResumeTs = now;
+  // 检测同一页面内的多个视频（微课视频模式）
+  // 学习通的微课视频模式：同一页面内有多个 iframe.ans-insertvideo-online，每个对应一个视频
+  // 参考思路：用 iframe.ans-insertvideo-online 的数量来判断当前小节是否有多个视频
+  function getMicroLessonVideoFrames() {
+    try {
+      var iframes = document.querySelectorAll('iframe');
+      var videoFrames = [];
 
-    if (!videoEl || !isPlaying) return;
+      for (var i = 0; i < iframes.length; i++) {
+        try {
+          var doc = iframes[i].contentDocument;
+          if (!doc) continue;
 
-    console.log('[cx] 恢复播放(' + reason + ')');
-    videoEl.play().catch(function(e) {
-      console.warn('[cx] 直接恢复失败，尝试静音:', e.message);
-      videoEl.muted = true;
-      videoEl.play().catch(function(err) {
-        console.error('[cx] 静音恢复也失败:', err.message);
-      });
-    });
+          // 关键选择器：iframe.ans-insertvideo-online 是学习通视频的标准容器
+          var innerVideoFrames = doc.querySelectorAll('iframe.ans-insertvideo-online');
+          for (var j = 0; j < innerVideoFrames.length; j++) {
+            videoFrames.push({
+              frame: innerVideoFrames[j],
+              parentIframe: iframes[i],
+              index: j
+            });
+          }
+        } catch (e) {}
+      }
+
+      if (videoFrames.length > 1) {
+        console.log('[cx] 检测到微课视频模式，共 ' + videoFrames.length + ' 个视频 iframe');
+        return videoFrames;
+      }
+    } catch (e) {
+      console.error('[cx] 检测微课视频出错:', e);
+    }
+
+    return null;
   }
 
+  // 当前播放的视频索引（微课视频模式）
+  var currentMicroLessonIndex = 0;
+  var microLessonFrames = null;
+
+  // 切换到指定索引的微课视频
+  function playMicroLessonByIndex(index): boolean {
+    if (!microLessonFrames || index >= microLessonFrames.length) return false;
+
+    var frameInfo = microLessonFrames[index];
+    try {
+      var vDoc = frameInfo.frame.contentDocument;
+      if (!vDoc) {
+        console.warn('[cx] 无法访问第 ' + (index + 1) + ' 个视频的 iframe 文档');
+        return false;
+      }
+
+      var video = vDoc.querySelector('video#video_html5_api') || vDoc.querySelector('video');
+      if (!video) {
+        console.warn('[cx] 第 ' + (index + 1) + ' 个视频 iframe 中未找到 video 元素');
+        return false;
+      }
+
+      console.log('[cx] 切换到微课视频 ' + (index + 1) + '/' + microLessonFrames.length);
+      updateStatus('播放微课视频 ' + (index + 1) + '/' + microLessonFrames.length);
+
+      // 切换视频元素引用
+      videoEl = video;
+      isPlaying = false;
+      currentMicroLessonIndex = index;
+
+      // 重新绑定事件
+      setupVideoEvents(video);
+
+      // 开始播放
+      videoEl.muted = true;
+      videoEl.playbackRate = CONFIG.playbackRate;
+      videoEl.play().then(function() {
+        console.log('[cx] 微课视频 ' + (index + 1) + ' 开始播放');
+        isPlaying = true;
+      }).catch(function(e) {
+        console.error('[cx] 微课视频播放失败:', e.message);
+      });
+
+      return true;
+    } catch (e) {
+      console.error('[cx] 切换微课视频出错:', e);
+      return false;
+    }
+  }
+
+  // 切换到下一个微课视频
+  function switchToNextMicroLessonVideo(): boolean {
+    if (!microLessonFrames) {
+      microLessonFrames = getMicroLessonVideoFrames();
+      if (!microLessonFrames) return false;
+      currentMicroLessonIndex = 0;
+      // 第一个视频已经在播放，不需要切换
+      return false;
+    }
+
+    // 还有下一个微课视频
+    if (currentMicroLessonIndex < microLessonFrames.length - 1) {
+      var nextIndex = currentMicroLessonIndex + 1;
+      console.log('[cx] 切换到下一个微课视频: ' + (nextIndex + 1) + '/' + microLessonFrames.length);
+      return playMicroLessonByIndex(nextIndex);
+    }
+
+    // 所有微课视频播放完成
+    console.log('[cx] 所有微课视频播放完成，切换下一章节');
+    microLessonFrames = null;
+    currentMicroLessonIndex = 0;
+    return false;
+  }
+
+  // 视频播放完成后的处理（先检查微课视频，再切换章节）
+  function onVideoEnded() {
+    if (window.__chaoxingAutoStop) return;
+    console.log('[cx] 视频ended事件触发');
+    isPlaying = false;
+    updateStatus('视频播放完成，准备切换...');
+
+    // 1. 先尝试切换微课视频（同一页面内的多个视频）
+    if (switchToNextMicroLessonVideo()) {
+      return;
+    }
+
+    // 2. 没有微课视频或已播放完所有微课视频，调用原来的章节切换
+    setTimeout(function() { nextUnit(); }, 1000);
+  }
+
+  // 设置视频事件监听器
   function setupVideoEvents(el) {
     el.addEventListener('ended', function() {
-      if (window.__chaoxingAutoStop) return;
-      console.log('[cx] 视频ended事件触发');
-      isPlaying = false;
-      updateStatus('视频播放完成，准备切换...');
-      setTimeout(function() { nextUnit(); }, 1000);
+      onVideoEnded();
     });
 
     el.addEventListener('play', function() {
