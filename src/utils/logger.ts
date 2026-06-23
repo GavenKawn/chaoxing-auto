@@ -15,9 +15,23 @@ export interface LogEntry {
   icon: string;
 }
 
+// 日志分类
+export type LogCategory =
+  | 'LOGIN'
+  | 'COURSE'
+  | 'CHAPTER'
+  | 'TASK'
+  | 'VIDEO'
+  | 'PPT'
+  | 'QUIZ'
+  | 'FRAME'
+  | 'STATE'
+  | 'RECOVER'
+  | 'SYSTEM';
+
 class Logger {
   private logs: LogEntry[] = [];
-  private maxLogs = 100;
+  private maxLogs = 200;
   private quiet = false;
 
   private getTimestamp(): string {
@@ -31,7 +45,6 @@ class Logger {
     }
   }
 
-  // 设置静默模式（Ink 模式下使用）
   setQuiet(quiet: boolean) {
     this.quiet = quiet;
   }
@@ -54,7 +67,7 @@ class Logger {
   private formatLog(entry: LogEntry): string {
     const icon = entry.icon;
     let coloredIcon: string;
-    
+
     switch (entry.level) {
       case LogLevel.SUCCESS:
         coloredIcon = chalk.green(icon);
@@ -71,10 +84,11 @@ class Logger {
       default:
         coloredIcon = chalk.blue(icon);
     }
-    
+
     return `[${entry.timestamp}] ${coloredIcon} ${entry.message}`;
   }
 
+  // 基础日志方法
   info(message: string) {
     const entry: LogEntry = {
       timestamp: this.getTimestamp(),
@@ -138,6 +152,32 @@ class Logger {
     if (!this.quiet) {
       console.log(this.formatLog(entry));
     }
+  }
+
+  // 分类日志方法 - 带标签的日志，方便排查问题
+  log(category: LogCategory, message: string, level: LogLevel = LogLevel.INFO) {
+    const taggedMessage = `[${category}] ${message}`;
+    switch (level) {
+      case LogLevel.SUCCESS:
+        this.success(taggedMessage);
+        break;
+      case LogLevel.ERROR:
+        this.error(taggedMessage);
+        break;
+      case LogLevel.WARNING:
+        this.warning(taggedMessage);
+        break;
+      case LogLevel.DEBUG:
+        this.debug(taggedMessage);
+        break;
+      default:
+        this.info(taggedMessage);
+    }
+  }
+
+  // 状态转换日志
+  stateChange(oldState: string, newState: string) {
+    this.log('STATE', `${oldState} -> ${newState}`, LogLevel.INFO);
   }
 
   getLogs(): LogEntry[] {

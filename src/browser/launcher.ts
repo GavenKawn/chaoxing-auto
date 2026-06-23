@@ -135,6 +135,7 @@ export const getPage = (): Page => {
 };
 
 // 获取学习页面（优先选择学习任务页，而不是个人空间页）
+// 放宽章节页面识别，支持多种 URL 模式
 export const getLearningPage = (): Page => {
   if (!context) {
     return getPage();
@@ -143,16 +144,24 @@ export const getLearningPage = (): Page => {
   const pages = context.pages();
   logger.debug(`当前浏览器标签页数量: ${pages.length}`);
 
-  // 页面评分函数
+  // 页面评分函数 - 支持多种学习通页面 URL
   const scorePage = (p: Page): number => {
     const url = p.url();
 
+    // 主要学习页面（高优先级）
     if (url.includes('/mycourse/studentstudy')) return 100;
     if (url.includes('mooc2-ans') && url.includes('/mycourse/stu')) return 90;
     if (url.includes('studentstudy')) return 80;
+    // 知识卡片页面
+    if (url.includes('knowledge/cards') || url.includes('/knowledge/')) return 75;
+    // 包含关键参数的页面
     if (url.includes('chapterId')) return 70;
     if (url.includes('courseId') || url.includes('courseid')) return 60;
+    if (url.includes('knowledgeid') || url.includes('knowledgeId')) return 65;
+    if (url.includes('clazzid') || url.includes('clazzId')) return 55;
+    // 一般学习通页面
     if (url.includes('mooc1.chaoxing.com')) return 50;
+    if (url.includes('mooc2-ans.chaoxing.com')) return 45;
     if (url.includes('i.chaoxing.com/base')) return 10;
     return 20;
   };

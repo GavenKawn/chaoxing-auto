@@ -8,16 +8,20 @@ interface LoginOptions {
   password?: boolean;
 }
 
+// 修复 readline 泄漏：使用 try/finally 确保 rl.close()
 function question(prompt: string): Promise<string> {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    rl.question(prompt, (answer) => {
+    try {
+      rl.question(prompt, (answer) => {
+        resolve(answer.trim());
+      });
+    } finally {
       rl.close();
-      resolve(answer.trim());
-    });
+    }
   });
 }
 
